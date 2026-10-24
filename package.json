@@ -1,0 +1,23 @@
+{
+  "name": "movie-services",
+  "version": "1.0.0",
+  "description": "Movie and ratings backend service.",
+  "license": "ISC",
+  "author": "Richard Ziegler",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "sqlite3": "^6.0.1"
+  }
+}
