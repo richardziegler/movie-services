@@ -1,5 +1,25 @@
 # Movie API Code Test
 
+## Running the API
+
+```sh
+npm i
+npm run dev
+```
+
+The API uses port 3000 by default; set environment variable `PORT` to use another port.
+
+Open [Swagger UI](http://localhost:3000/docs) to browse and try the endpoints.
+
+Example requests:
+
+```text
+GET /movies?page=2
+GET /movies?year=2000&order=DESC&page=1
+GET /movies?genre=Documentary&page=1
+GET /movies/862
+```
+
 ## Pre-requisites
 
 * An IDE or text editor of your choice

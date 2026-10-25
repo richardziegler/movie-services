@@ -1,0 +1,192 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Movie API",
+    "version": "1.0.0",
+    "description": "Read-only movie information and ratings from the supplied SQLite databases.",
+    "license": { "name": "ISC" }
+  },
+  "servers": [{ "url": "/", "description": "Current server" }],
+  "security": [],
+  "tags": [
+    { "name": "Movies", "description": "Movie lists and details." }
+  ],
+  "paths": {
+    "/movies": {
+      "get": {
+        "tags": ["Movies"],
+        "operationId": "getMovies",
+        "summary": "List movies, optionally filtered by year or genre",
+        "description": "Returns up to 50 movies per page. With no filters, movies are ordered by their internal movie ID. Year filtering sorts by release date. Genre filtering matches a full genre name case-insensitively and ignores surrounding whitespace. If both year and genre are supplied, year takes priority and genre is ignored. The order parameter is only used and validated when year is supplied. An unfiltered page beyond the results returns an empty array; a filtered page with no results returns 404.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number, with 50 movies per page. Both the page and calculated offset must be safe integers.",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "example": 1
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "description": "Four-digit release year. Takes priority over genre when both are supplied.",
+            "schema": { "type": "integer", "minimum": 1000, "maximum": 9999 },
+            "example": 2000
+          },
+          {
+            "name": "genre",
+            "in": "query",
+            "description": "Full genre name, such as Drama, Science Fiction, or TV Movie. Must contain a non-whitespace character. Ignored when year is supplied.",
+            "schema": { "type": "string", "minLength": 1 },
+            "example": "Science Fiction"
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "Release-date sort direction for year filtering only. ASC is chronological; DESC reverses the order. Values are case-sensitive.",
+            "schema": { "type": "string", "enum": ["ASC", "DESC"], "default": "ASC" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of movies, containing at most 50 items.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "maxItems": 50,
+                  "items": { "$ref": "#/components/schemas/MovieSummary" }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": {
+            "description": "No movies on the requested page for the specified year or genre. Applies only to filtered lists.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "No movies found for the specified year" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/movies/{id}": {
+      "get": {
+        "tags": ["Movies"],
+        "operationId": "getMovieById",
+        "summary": "Get details for one movie",
+        "description": "Looks up the internal numeric movie ID, not the IMDb ID. Includes the average rating from the ratings database, rounded to two decimal places, or null when there are no ratings.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Positive internal movie ID from the movies database. Must be a safe integer.",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+            "example": 862
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Movie details with the average rating.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MovieDetails" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": {
+            "description": "No movie has the requested internal ID.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "error": "Movie not found" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MovieSummary": {
+        "type": "object",
+        "required": ["imdbId", "title", "genres", "releaseDate", "budget"],
+        "properties": {
+          "imdbId": { "type": "string", "example": "tt0114709" },
+          "title": { "type": "string", "example": "Toy Story" },
+          "genres": {
+            "type": "string",
+            "nullable": true,
+            "description": "JSON-encoded array of genre objects, returned as a string rather than a JSON array.",
+            "example": "[{\"id\":16,\"name\":\"Animation\"}]"
+          },
+          "releaseDate": { "type": "string", "format": "date", "nullable": true, "example": "1995-10-30" },
+          "budget": {
+            "type": "string",
+            "description": "Budget formatted in US dollars with no decimal places. Zero is $0; a null budget is N/A.",
+            "example": "$30,000,000"
+          }
+        }
+      },
+      "MovieDetails": {
+        "allOf": [
+          { "$ref": "#/components/schemas/MovieSummary" },
+          {
+            "type": "object",
+            "required": ["description", "runtime", "averageRating", "originalLanguage", "productionCompanies"],
+            "properties": {
+              "description": { "type": "string", "nullable": true, "example": "A story about toys that come to life." },
+              "runtime": { "type": "number", "nullable": true, "description": "Runtime in minutes.", "example": 81 },
+              "averageRating": {
+                "type": "number",
+                "nullable": true,
+                "description": "Average from the ratings database, rounded to two decimal places. Null when no ratings exist.",
+                "example": 3.92
+              },
+              "originalLanguage": { "type": "string", "nullable": true, "example": "en" },
+              "productionCompanies": {
+                "type": "string",
+                "nullable": true,
+                "description": "JSON-encoded array of production-company objects, returned as a string rather than a JSON array.",
+                "example": "[{\"name\":\"Pixar Animation Studios\",\"id\":3}]"
+              }
+            }
+          }
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": { "error": { "type": "string" } }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "An invalid page, year, genre, sort order, or movie ID was supplied.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "page must be a positive integer within the supported range" }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "An unexpected server or database error occurred.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "error": "Internal server error" }
+          }
+        }
+      }
+    }
+  }
+}
